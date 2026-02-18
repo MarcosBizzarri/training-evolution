@@ -54,7 +54,7 @@ export default function Login() {
         <button
           onClick={entrar}
           disabled={loading}
-          className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl font-semibold disabled:opacity-50 transition"
+          className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl font-semibold disabled:opacity-50 transition cursor-pointer"
         >
           {loading ? "Entrando..." : "Entrar"}
         </button>

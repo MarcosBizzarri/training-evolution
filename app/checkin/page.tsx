@@ -39,8 +39,13 @@ export default function CheckinPage() {
   const [comentario, setComentario] = useState("");
 
   // ✅ Inicializa com data de hoje
-  const hoje = new Date();
-  const dataHoje = hoje.toISOString().split("T")[0];
+ const hoje = new Date();
+const ano = hoje.getFullYear();
+const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+const dia = String(hoje.getDate()).padStart(2, "0");
+
+const dataHoje = `${ano}-${mes}-${dia}`;
+
   const [dataSelecionada, setDataSelecionada] = useState(dataHoje);
 
   // -----------------------------
@@ -130,7 +135,12 @@ export default function CheckinPage() {
   const salvarCheckin = async (tipo: string) => {
     if (!user) return;
 
-    const data = Timestamp.fromDate(new Date(dataSelecionada));
+const [ano, mes, dia] = dataSelecionada.split("-").map(Number);
+
+// cria a data AO MEIO-DIA (evita qualquer bug de fuso)
+const dataLocal = new Date(ano, mes - 1, dia, 12, 0, 0);
+
+const data = Timestamp.fromDate(dataLocal);
 
     await addDoc(collection(db, "users", user.uid, "checkins"), {
       tipo,
@@ -215,7 +225,7 @@ export default function CheckinPage() {
               <button
                 key={tipo}
                 onClick={() => salvarCheckin(tipo)}
-                className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition"
+                className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition cursor-pointer"
               >
                 {tipo}
               </button>
@@ -260,14 +270,14 @@ export default function CheckinPage() {
                           item.comentario || ""
                         )
                       }
-                      className="text-yellow-400 text-sm"
+                      className="text-yellow-400 text-sm cursor-pointer"
                     >
                       Editar
                     </button>
 
                     <button
                       onClick={() => excluirCheckin(item.id)}
-                      className="text-red-500 text-sm"
+                      className="text-red-500 text-sm cursor-pointer"
                     >
                       Excluir
                     </button>
