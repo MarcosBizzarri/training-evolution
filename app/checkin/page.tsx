@@ -12,7 +12,6 @@ import {
   orderBy,
   query,
   Timestamp,
-  getDocs,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -38,9 +37,23 @@ export default function CheckinPage() {
 
   const [novoTipo, setNovoTipo] = useState("");
   const [comentario, setComentario] = useState("");
-  const [dataSelecionada, setDataSelecionada] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+
+  // Inicializa dataSelecionada com localStorage ou hoje
+  const [dataSelecionada, setDataSelecionada] = useState(() => {
+    const dataSalva = localStorage.getItem("dataSelecionada");
+    if (dataSalva) return dataSalva;
+
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+    const dia = String(hoje.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+  });
+
+  // Salva dataSelecionada no localStorage sempre que muda
+  useEffect(() => {
+    localStorage.setItem("dataSelecionada", dataSelecionada);
+  }, [dataSelecionada]);
 
   // Monitorar login
   useEffect(() => {
@@ -58,7 +71,7 @@ export default function CheckinPage() {
     const unsub = onSnapshot(tiposRef, (snapshot) => {
       const listaTipos = snapshot.docs.map((doc) => doc.data().nome);
       setTipos((prev) => [
-        ...["Academia", "Corrida", "Caminhada", "Bike"], // sempre manter padrões
+        ...["Academia", "Corrida", "Caminhada", "Bike"],
         ...listaTipos.filter((t) => !prev.includes(t)),
       ]);
     });
@@ -82,7 +95,13 @@ export default function CheckinPage() {
   // Salvar check-in
   const salvarCheckin = async (tipo: string) => {
     if (!user) return;
-    const timestampData = Timestamp.fromDate(new Date(dataSelecionada));
+
+    // Criar Date no horário local a partir de dataSelecionada
+    const [ano, mes, dia] = dataSelecionada.split("-").map(Number);
+    const dataLocal = new Date(ano, mes - 1, dia);
+
+    // Criar Timestamp do Firestore
+    const timestampData = Timestamp.fromDate(dataLocal);
 
     await addDoc(collection(db, "users", user.uid, "checkins"), {
       tipo,
@@ -90,8 +109,15 @@ export default function CheckinPage() {
       comentario: comentario || "",
     });
 
+    // Resetar comentário
     setComentario("");
-    setDataSelecionada(new Date().toISOString().split("T")[0]);
+
+    // Resetar dataSelecionada para hoje
+    const hoje = new Date();
+    const anoHoje = hoje.getFullYear();
+    const mesHoje = String(hoje.getMonth() + 1).padStart(2, "0");
+    const diaHoje = String(hoje.getDate()).padStart(2, "0");
+    setDataSelecionada(`${anoHoje}-${mesHoje}-${diaHoje}`);
   };
 
   // Editar check-in
@@ -225,11 +251,7 @@ export default function CheckinPage() {
                   <div className="flex gap-3 mt-2">
                     <button
                       onClick={() =>
-                        editarCheckin(
-                          item.id,
-                          item.tipo,
-                          item.comentario || ""
-                        )
+                        editarCheckin(item.id, item.tipo, item.comentario || "")
                       }
                       className="text-yellow-400 text-sm hover:underline cursor-pointer"
                     >

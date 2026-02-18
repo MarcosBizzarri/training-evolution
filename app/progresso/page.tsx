@@ -27,9 +27,24 @@ export default function Progresso() {
   const [user, setUser] = useState<User | null>(null);
   const [peso, setPeso] = useState("");
   const [comentario, setComentario] = useState("");
-  const [dataSelecionada, setDataSelecionada] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+
+  // Estado da data selecionada
+  
+// Estado da data selecionada, inicializado de forma segura no cliente
+const [dataSelecionada, setDataSelecionada] = useState<string>(() => {
+  if (typeof window !== "undefined") {
+    const dataSalva = localStorage.getItem("dataSelecionadaPeso");
+    if (dataSalva) return dataSalva;
+  }
+
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+  const dia = String(hoje.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+});
+
+
   const [historico, setHistorico] = useState<PesoItem[]>([]);
 
   // Monitorar usuário logado
@@ -60,13 +75,19 @@ export default function Progresso() {
     return () => unsub();
   }, [user]);
 
+  // Função para criar Timestamp a partir da data selecionada (corrige fuso horário)
+  const criarTimestampLocal = (dataStr: string) => {
+    const [ano, mes, dia] = dataStr.split("-").map(Number);
+    const dataLocal = new Date(ano, mes - 1, dia); // horário local
+    return Timestamp.fromDate(dataLocal);
+  };
+
   // Salvar peso
   async function salvar() {
     if (!user) {
       alert("Usuário não logado");
       return;
     }
-
     if (!peso) {
       alert("Informe o peso");
       return;
@@ -75,32 +96,35 @@ export default function Progresso() {
     await addDoc(collection(db, "users", user.uid, "peso"), {
       valor: Number(peso),
       comentario: comentario || "",
-      data: Timestamp.fromDate(new Date(dataSelecionada)), // usa a data selecionada
+      data: criarTimestampLocal(dataSelecionada),
     });
 
     setPeso("");
     setComentario("");
-    setDataSelecionada(new Date().toISOString().split("T")[0]);
+
+    // Resetar para hoje
+    const hoje = new Date();
+    const anoHoje = hoje.getFullYear();
+    const mesHoje = String(hoje.getMonth() + 1).padStart(2, "0");
+    const diaHoje = String(hoje.getDate()).padStart(2, "0");
+    setDataSelecionada(`${anoHoje}-${mesHoje}-${diaHoje}`);
   }
 
   // Editar registro
   async function editar(item: PesoItem) {
     const novoValor = prompt("Editar peso:", item.valor.toString());
-    const novoComentario = prompt(
-      "Editar comentário:",
-      item.comentario || ""
-    );
-    const novaData = prompt(
+    const novoComentario = prompt("Editar comentário:", item.comentario || "");
+    const novaDataStr = prompt(
       "Editar data (YYYY-MM-DD):",
       item.data.toDate().toISOString().split("T")[0]
     );
 
-    if (!novoValor || !user || !novaData) return;
+    if (!novoValor || !user || !novaDataStr) return;
 
     await updateDoc(doc(db, "users", user.uid, "peso", item.id), {
       valor: Number(novoValor),
-      comentario: novaData ? novoComentario : "",
-      data: Timestamp.fromDate(new Date(novaData)),
+      comentario: novoComentario || "",
+      data: criarTimestampLocal(novaDataStr),
     });
   }
 
