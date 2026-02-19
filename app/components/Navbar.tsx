@@ -17,7 +17,7 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 w-full bg-zinc-800 p-4 shadow-md z-50">
       <div className="flex justify-between items-center max-w-5xl mx-auto">
   <button
-    onClick={() => router.push("/")}
+    onClick={() => router.push("/app")}
     className="text-white font-bold text-2xl hover:text-blue-400 transition cursor-pointer"
   >
     Início

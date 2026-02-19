@@ -18,7 +18,7 @@ export default function Login() {
     try {
       setLoading(true);
       await signInWithEmailAndPassword(auth, email, senha);
-      window.location.href = "/";
+      window.location.href = "/app";
     } catch (error: unknown) {
       if (error instanceof Error) {
         alert(error.message);

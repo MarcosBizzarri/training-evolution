@@ -13,6 +13,21 @@ export default function HomePage() {
             Training Evolution
           </h1>
 
+          <div className="flex gap-4">
+            <Link
+              href="/login"
+              className="text-zinc-300 hover:text-white transition"
+            >
+              Entrar
+            </Link>
+
+            <Link
+              href="/cadastro"
+              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold transition"
+            >
+              Criar Conta
+            </Link>
+          </div>
         </div>
       </header>
 
