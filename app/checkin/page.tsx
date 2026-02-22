@@ -9,10 +9,14 @@ import {
   doc,
   deleteDoc,
   updateDoc,
-  onSnapshot,
   orderBy,
   query,
   Timestamp,
+  limit,
+  startAfter,
+  getDocs,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -29,27 +33,30 @@ export default function CheckinPage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [checkins, setCheckins] = useState<Checkin[]>([]);
-  const [tipos, setTipos] = useState<string[]>([
+  const [lastDoc, setLastDoc] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [todosCheckins, setTodosCheckins] = useState<Checkin[]>([]);
+
+
+  const [tipos] = useState<string[]>([
     "Academia",
     "Corrida",
     "Caminhada",
     "Bike",
   ]);
-  const [novoTipo, setNovoTipo] = useState("");
+
   const [comentario, setComentario] = useState("");
 
-  // ✅ Inicializa com data de hoje
- const hoje = new Date();
-const ano = hoje.getFullYear();
-const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-const dia = String(hoje.getDate()).padStart(2, "0");
-
-const dataHoje = `${ano}-${mes}-${dia}`;
-
+  const hoje = new Date();
+  const dataHoje = hoje.toISOString().split("T")[0];
   const [dataSelecionada, setDataSelecionada] = useState(dataHoje);
 
   // -----------------------------
-  // MONITORAR USUÁRIO
+  // AUTH
   // -----------------------------
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -63,129 +70,181 @@ const dataHoje = `${ano}-${mes}-${dia}`;
     return () => unsubscribe();
   }, [router]);
 
-  // -----------------------------
-  // BUSCAR TIPOS PERSONALIZADOS
-  // -----------------------------
   useEffect(() => {
-    if (!user) return;
+  if (!user) return;
 
-    const tiposRef = collection(db, "users", user.uid, "tipos");
-
-    const unsub = onSnapshot(tiposRef, (snapshot) => {
-      const listaTipos = snapshot.docs.map(
-        (doc) => doc.data().nome as string
-      );
-
-      setTipos([
-        "Academia",
-        "Corrida",
-        "Caminhada",
-        "Bike",
-        ...listaTipos,
-      ]);
-    });
-
-    return () => unsub();
-  }, [user]);
-
-  // -----------------------------
-  // BUSCAR CHECKINS
-  // -----------------------------
-  useEffect(() => {
-    if (!user) return;
-
+  const buscarTodos = async () => {
     const q = query(
       collection(db, "users", user.uid, "checkins"),
       orderBy("data", "desc")
     );
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      const lista = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Checkin[];
+    const snapshot = await getDocs(q);
 
-      setCheckins(lista);
-    });
+    const lista = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Checkin[];
 
-    return () => unsub();
-  }, [user]);
+    setTodosCheckins(lista);
+  };
+
+  buscarTodos();
+}, [user]);
+
 
   // -----------------------------
-  // ADICIONAR TIPO
+  // BUSCAR PRIMEIROS 5
   // -----------------------------
-  const adicionarTipo = async () => {
-    if (!novoTipo.trim() || !user) return;
+  const buscarPrimeiros = async () => {
+    if (!user) return;
 
-    if (tipos.includes(novoTipo)) {
-      alert("Tipo já existe!");
-      return;
-    }
+    const q = query(
+      collection(db, "users", user.uid, "checkins"),
+      orderBy("data", "desc"),
+      limit(5)
+    );
 
-    await addDoc(collection(db, "users", user.uid, "tipos"), {
-      nome: novoTipo,
-    });
+    const snapshot = await getDocs(q);
 
-    setNovoTipo("");
+    const lista = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Checkin[];
+
+    setCheckins(lista);
+    setLastDoc(snapshot.docs[snapshot.docs.length - 1] || null);
+    setHasMore(snapshot.docs.length === 5);
+  };
+
+useEffect(() => {
+  if (!user) return;
+
+  const buscarPrimeiros = async () => {
+    const q = query(
+      collection(db, "users", user.uid, "checkins"),
+      orderBy("data", "desc"),
+      limit(5)
+    );
+
+    const snapshot = await getDocs(q);
+
+    const lista = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Checkin[];
+
+    setCheckins(lista);
+    setLastDoc(snapshot.docs[snapshot.docs.length - 1] || null);
+    setHasMore(snapshot.docs.length === 5);
+  };
+
+  buscarPrimeiros();
+}, [user]);
+
+
+  // -----------------------------
+  // VER MAIS
+  // -----------------------------
+  const carregarMais = async () => {
+    if (!user || !lastDoc) return;
+
+    setLoadingMore(true);
+
+    const q = query(
+      collection(db, "users", user.uid, "checkins"),
+      orderBy("data", "desc"),
+      startAfter(lastDoc),
+      limit(5)
+    );
+
+    const snapshot = await getDocs(q);
+
+    const novos = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Checkin[];
+
+    setCheckins((prev) => [...prev, ...novos]);
+    setLastDoc(snapshot.docs[snapshot.docs.length - 1] || null);
+    setHasMore(snapshot.docs.length === 5);
+
+    setLoadingMore(false);
   };
 
   // -----------------------------
-  // SALVAR CHECKIN
+  // SALVAR / EDITAR
   // -----------------------------
   const salvarCheckin = async (tipo: string) => {
     if (!user) return;
 
-const [ano, mes, dia] = dataSelecionada.split("-").map(Number);
+    const [ano, mes, dia] = dataSelecionada.split("-").map(Number);
+    const dataLocal = new Date(ano, mes - 1, dia, 12, 0, 0);
+    const data = Timestamp.fromDate(dataLocal);
 
-// cria a data AO MEIO-DIA (evita qualquer bug de fuso)
-const dataLocal = new Date(ano, mes - 1, dia, 12, 0, 0);
-
-const data = Timestamp.fromDate(dataLocal);
-
-    await addDoc(collection(db, "users", user.uid, "checkins"), {
-      tipo,
-      data,
-      comentario,
-    });
+    if (editandoId) {
+      await updateDoc(
+        doc(db, "users", user.uid, "checkins", editandoId),
+        { tipo, data, comentario }
+      );
+      setEditandoId(null);
+    } else {
+      await addDoc(collection(db, "users", user.uid, "checkins"), {
+        tipo,
+        data,
+        comentario,
+      });
+    }
 
     setComentario("");
+    buscarPrimeiros();
   };
 
   // -----------------------------
-  // EDITAR CHECKIN
-  // -----------------------------
-  const editarCheckin = async (
-    id: string,
-    oldTipo: string,
-    oldComentario: string
-  ) => {
-    if (!user) return;
-
-    const novoTipoPrompt =
-      prompt("Editar tipo de treino:", oldTipo) || oldTipo;
-
-    const novoComentario =
-      prompt("Editar comentário:", oldComentario) || oldComentario;
-
-    await updateDoc(doc(db, "users", user.uid, "checkins", id), {
-      tipo: novoTipoPrompt,
-      comentario: novoComentario,
-    });
-  };
-
-  // -----------------------------
-  // EXCLUIR CHECKIN
+  // EXCLUIR
   // -----------------------------
   const excluirCheckin = async (id: string) => {
     if (!user) return;
 
-    if (!confirm("Deseja excluir este check-in?")) return;
-
     await deleteDoc(doc(db, "users", user.uid, "checkins", id));
+    buscarPrimeiros();
   };
 
   // -----------------------------
-  // LOADING
+  // CONTADORES
+  // -----------------------------
+ const diasUnicos = new Set(
+  todosCheckins.map((c) =>
+    c.data.toDate().toDateString()
+  )
+);
+
+
+  const totalDiasTreinados = diasUnicos.size;
+
+  const datasOrdenadas = [...diasUnicos]
+    .map((d) => new Date(d))
+    .sort((a, b) => b.getTime() - a.getTime());
+
+  let streak = 0;
+
+  for (let i = 0; i < datasOrdenadas.length; i++) {
+    const hoje = new Date();
+    const diff =
+      Math.floor(
+        (hoje.getTime() - datasOrdenadas[i].getTime()) /
+          (1000 * 60 * 60 * 24)
+      );
+
+    if (diff === streak) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  // -----------------------------
+  // UI
   // -----------------------------
   if (!user)
     return (
@@ -201,9 +260,17 @@ const data = Timestamp.fromDate(dataLocal);
       <main className="flex flex-col items-center pt-28 p-4 space-y-6 w-full max-w-xl mx-auto">
         <h1 className="text-3xl font-bold text-white">Treinos</h1>
 
+        <p className="text-green-400 font-semibold">
+          🔥 {totalDiasTreinados} dias treinando
+        </p>
+
+        <p className="text-orange-400 font-semibold">
+          ⚡ {streak} dias seguidos
+        </p>
+
         {/* FORM */}
         <div className="flex flex-col space-y-4 w-full">
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-3">
             <input
               type="date"
               value={dataSelecionada}
@@ -225,9 +292,9 @@ const data = Timestamp.fromDate(dataLocal);
               <button
                 key={tipo}
                 onClick={() => salvarCheckin(tipo)}
-                className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition cursor-pointer"
+                className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition"
               >
-                {tipo}
+                {editandoId ? "Atualizar" : tipo}
               </button>
             ))}
           </div>
@@ -240,51 +307,60 @@ const data = Timestamp.fromDate(dataLocal);
           {checkins.length === 0 ? (
             <p className="text-zinc-400">Nenhum treino ainda</p>
           ) : (
-            <ul className="space-y-3">
-              {checkins.map((item) => (
-                <li
-                  key={item.id}
-                  className="bg-zinc-800 p-4 rounded-lg"
+            <>
+              <ul className="space-y-3">
+                {checkins.map((item) => (
+                  <li key={item.id} className="bg-zinc-800 p-4 rounded-lg">
+                    <div className="flex justify-between text-white">
+                      <span>{item.tipo}</span>
+                      <span className="text-sm text-zinc-400">
+                        {item.data
+                          .toDate()
+                          .toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+
+                    {item.comentario && (
+                      <p className="text-sm text-zinc-300 mt-1">
+                        {item.comentario}
+                      </p>
+                    )}
+
+                    <div className="flex gap-4 mt-3 text-sm">
+                      <button
+                        onClick={() => {
+                          setEditandoId(item.id);
+                          setComentario(item.comentario || "");
+                          setDataSelecionada(
+                            item.data.toDate().toISOString().split("T")[0]
+                          );
+                        }}
+                        className="text-yellow-400 hover:text-yellow-300"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        onClick={() => excluirCheckin(item.id)}
+                        className="text-red-500 hover:text-red-400"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              {hasMore && (
+                <button
+                  onClick={carregarMais}
+                  disabled={loadingMore}
+                  className="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-lg"
                 >
-                  <div className="flex justify-between text-white">
-                    <span>{item.tipo}</span>
-                    <span className="text-sm text-zinc-400">
-                      {item.data
-                        .toDate()
-                        .toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-
-                  {item.comentario && (
-                    <p className="text-sm text-zinc-300 mt-1">
-                      {item.comentario}
-                    </p>
-                  )}
-
-                  <div className="flex gap-4 mt-2">
-                    <button
-                      onClick={() =>
-                        editarCheckin(
-                          item.id,
-                          item.tipo,
-                          item.comentario || ""
-                        )
-                      }
-                      className="text-yellow-400 text-sm cursor-pointer"
-                    >
-                      Editar
-                    </button>
-
-                    <button
-                      onClick={() => excluirCheckin(item.id)}
-                      className="text-red-500 text-sm cursor-pointer"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  {loadingMore ? "Carregando..." : "Ver mais"}
+                </button>
+              )}
+            </>
           )}
         </div>
       </main>

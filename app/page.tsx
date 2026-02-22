@@ -9,9 +9,7 @@ export default function HomePage() {
       {/* ---------------- NAVBAR ---------------- */}
       <header className="fixed top-0 w-full bg-zinc-950/80 backdrop-blur border-b border-zinc-800 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="font-bold text-xl tracking-wide">
-            Training Evolution
-          </h1>
+          <h1 className="font-bold text-xl tracking-wide">Training Evolution</h1>
         </div>
       </header>
 
