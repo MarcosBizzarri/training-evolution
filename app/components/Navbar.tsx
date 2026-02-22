@@ -14,27 +14,25 @@ export default function Navbar() {
   };
 
   return (
-   <nav className="fixed top-0 left-0 w-full bg-zinc-900 shadow-md z-50">
-  <div className="flex justify-between items-center px-4 py-3">
-    
-    <button
-      onClick={() => router.push("/app")}
-      className="text-white font-bold text-lg hover:text-blue-400 transition"
-    >
-      Início
-    </button>
+    <nav className="fixed top-0 left-0 w-full bg-zinc-900 shadow-md z-50">
+      <div className="max-w-4xl mx-auto flex justify-between items-center px-4 py-3">
+        <button
+          onClick={() => router.push("/app")}
+          className="text-white font-bold text-base sm:text-lg hover:text-blue-400 transition"
+        >
+          Início
+        </button>
 
-    <button
-      onClick={handleLogout}
-      className="bg-red-500 hover:bg-red-600 active:scale-95 
-                 text-white text-sm font-semibold 
-                 px-4 py-2 rounded-xl 
-                 transition-all duration-200"
-    >
-      Sair
-    </button>
-
-  </div>
-</nav>
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 hover:bg-red-600 active:scale-95 
+                   text-white text-xs sm:text-sm font-semibold 
+                   px-3 sm:px-4 py-2 rounded-xl 
+                   transition-all duration-200"
+        >
+          Sair
+        </button>
+      </div>
+    </nav>
   );
 }

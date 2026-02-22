@@ -5,11 +5,12 @@ import Link from "next/link";
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
-      
       {/* ---------------- NAVBAR ---------------- */}
       <header className="fixed top-0 w-full bg-zinc-950/80 backdrop-blur border-b border-zinc-800 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="font-bold text-xl tracking-wide">Training Evolution</h1>
+          <h1 className="font-bold text-xl tracking-wide">
+            Training Evolution
+          </h1>
         </div>
       </header>
 
@@ -27,8 +28,8 @@ export default function HomePage() {
           </h2>
 
           <p className="text-zinc-400 mt-6 text-lg">
-            Registre seus treinos, acompanhe sua constância e construa
-            um histórico verdadeiro da sua jornada fitness.
+            Registre seus treinos, acompanhe sua constância e construa um
+            histórico verdadeiro da sua jornada fitness.
           </p>
 
           <div className="flex justify-center gap-6 mt-10">
@@ -52,7 +53,6 @@ export default function HomePage() {
       {/* ---------------- BENEFÍCIOS ---------------- */}
       <section className="py-24 px-6 bg-zinc-900">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-12 text-center">
-
           {[
             {
               title: "Constância",
@@ -81,9 +81,7 @@ export default function HomePage() {
       {/* ---------------- COMO FUNCIONA ---------------- */}
       <section className="py-28 px-6">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-6">
-            Como funciona?
-          </h2>
+          <h2 className="text-4xl font-bold mb-6">Como funciona?</h2>
 
           <p className="text-zinc-400 text-lg mb-12">
             Simples, direto e focado no que realmente importa: sua evolução.
@@ -114,23 +112,17 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto grid sm:grid-cols-3 gap-12 text-center">
           <div>
             <p className="text-5xl font-extrabold text-blue-500">+500</p>
-            <p className="text-zinc-400 mt-2">
-              Check-ins registrados
-            </p>
+            <p className="text-zinc-400 mt-2">Check-ins registrados</p>
           </div>
 
           <div>
             <p className="text-5xl font-extrabold text-blue-500">+120</p>
-            <p className="text-zinc-400 mt-2">
-              Usuários ativos
-            </p>
+            <p className="text-zinc-400 mt-2">Usuários ativos</p>
           </div>
 
           <div>
             <p className="text-5xl font-extrabold text-blue-500">100%</p>
-            <p className="text-zinc-400 mt-2">
-              Focado em disciplina
-            </p>
+            <p className="text-zinc-400 mt-2">Focado em disciplina</p>
           </div>
         </div>
       </section>
@@ -156,11 +148,8 @@ export default function HomePage() {
       {/* ---------------- FOOTER ---------------- */}
       <footer className="bg-zinc-950 border-t border-zinc-800 py-10 px-6">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8 text-sm text-zinc-400">
-
           <div>
-            <h4 className="font-bold text-white mb-3">
-              Training Evolution
-            </h4>
+            <h4 className="font-bold text-white mb-3">Training Evolution</h4>
             <p>
               Plataforma criada para transformar disciplina em resultado real.
             </p>
@@ -189,7 +178,8 @@ export default function HomePage() {
         </div>
 
         <div className="text-center text-zinc-600 mt-10 text-xs">
-          © {new Date().getFullYear()} Training Evolution. Todos os direitos reservados.
+          © {new Date().getFullYear()} Training Evolution. Todos os direitos
+          reservados.
         </div>
       </footer>
     </div>

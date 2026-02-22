@@ -27,19 +27,24 @@ type Checkin = {
   data: Timestamp;
   comentario?: string;
 };
+
 export default function CheckinPage() {
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
   const [checkins, setCheckins] = useState<Checkin[]>([]);
+  const [todosCheckins, setTodosCheckins] = useState<Checkin[]>([]);
   const [lastDoc, setLastDoc] =
     useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [editandoId, setEditandoId] = useState<string | null>(null);
-  const [todosCheckins, setTodosCheckins] = useState<Checkin[]>([]);
 
+  // MODAL
+  const [modalAberto, setModalAberto] = useState(false);
+  const [checkinEditando, setCheckinEditando] = useState<Checkin | null>(null);
+  const [novoTipo, setNovoTipo] = useState("");
+  const [novoComentario, setNovoComentario] = useState("");
 
   const [tipos] = useState<string[]>([
     "Academia",
@@ -54,9 +59,7 @@ export default function CheckinPage() {
   const dataHoje = hoje.toISOString().split("T")[0];
   const [dataSelecionada, setDataSelecionada] = useState(dataHoje);
 
-  // -----------------------------
-  // AUTH
-  // -----------------------------
+  // ---------------- AUTH ----------------
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (!currentUser) {
@@ -69,39 +72,37 @@ export default function CheckinPage() {
     return () => unsubscribe();
   }, [router]);
 
+  // ---------------- BUSCAR TODOS ----------------
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  const buscarTodos = async () => {
-    const q = query(
-      collection(db, "users", user.uid, "checkins"),
-      orderBy("data", "desc")
-    );
+    const buscarTodos = async () => {
+      const q = query(
+        collection(db, "users", user.uid, "checkins"),
+        orderBy("data", "desc"),
+      );
 
-    const snapshot = await getDocs(q);
+      const snapshot = await getDocs(q);
 
-    const lista = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Checkin[];
+      const lista = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Checkin[];
 
-    setTodosCheckins(lista);
-  };
+      setTodosCheckins(lista);
+    };
 
-  buscarTodos();
-}, [user]);
+    buscarTodos();
+  }, [user]);
 
-
-  // -----------------------------
-  // BUSCAR PRIMEIROS 5
-  // -----------------------------
+  // ---------------- BUSCAR PRIMEIROS ----------------
   const buscarPrimeiros = async () => {
     if (!user) return;
 
     const q = query(
       collection(db, "users", user.uid, "checkins"),
       orderBy("data", "desc"),
-      limit(5)
+      limit(5),
     );
 
     const snapshot = await getDocs(q);
@@ -116,35 +117,32 @@ export default function CheckinPage() {
     setHasMore(snapshot.docs.length === 5);
   };
 
-useEffect(() => {
-  if (!user) return;
+  useEffect(() => {
+    if (!user) return;
 
-  const buscarPrimeiros = async () => {
-    const q = query(
-      collection(db, "users", user.uid, "checkins"),
-      orderBy("data", "desc"),
-      limit(5)
-    );
+    const buscarPrimeiros = async () => {
+      const q = query(
+        collection(db, "users", user.uid, "checkins"),
+        orderBy("data", "desc"),
+        limit(5),
+      );
 
-    const snapshot = await getDocs(q);
+      const snapshot = await getDocs(q);
 
-    const lista = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Checkin[];
+      const lista = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Checkin[];
 
-    setCheckins(lista);
-    setLastDoc(snapshot.docs[snapshot.docs.length - 1] || null);
-    setHasMore(snapshot.docs.length === 5);
-  };
+      setCheckins(lista);
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMore(snapshot.docs.length === 5);
+    };
 
-  buscarPrimeiros();
-}, [user]);
+    buscarPrimeiros();
+  }, [user]);
 
-
-  // -----------------------------
-  // VER MAIS
-  // -----------------------------
+  // ---------------- VER MAIS ----------------
   const carregarMais = async () => {
     if (!user || !lastDoc) return;
 
@@ -154,7 +152,7 @@ useEffect(() => {
       collection(db, "users", user.uid, "checkins"),
       orderBy("data", "desc"),
       startAfter(lastDoc),
-      limit(5)
+      limit(5),
     );
 
     const snapshot = await getDocs(q);
@@ -171,9 +169,8 @@ useEffect(() => {
     setLoadingMore(false);
   };
 
-  // -----------------------------
-  // SALVAR / EDITAR
-  // -----------------------------
+  // ---------------- SALVAR NOVO ----------------
+  // ---------------- SALVAR OU ATUALIZAR ----------------
   const salvarCheckin = async (tipo: string) => {
     if (!user) return;
 
@@ -181,13 +178,30 @@ useEffect(() => {
     const dataLocal = new Date(ano, mes - 1, dia, 12, 0, 0);
     const data = Timestamp.fromDate(dataLocal);
 
-    if (editandoId) {
+    // 🔎 Verifica se já existe treino nesse dia
+    const q = query(
+      collection(db, "users", user.uid, "checkins"),
+      orderBy("data", "desc"),
+    );
+
+    const snapshot = await getDocs(q);
+
+    const checkinExistente = snapshot.docs.find((doc) => {
+      const dataDoc = doc.data().data.toDate();
+      return dataDoc.toDateString() === dataLocal.toDateString();
+    });
+
+    if (checkinExistente) {
+      // ✅ Atualiza o que já existe
       await updateDoc(
-        doc(db, "users", user.uid, "checkins", editandoId),
-        { tipo, data, comentario }
+        doc(db, "users", user.uid, "checkins", checkinExistente.id),
+        {
+          tipo,
+          comentario,
+        },
       );
-      setEditandoId(null);
     } else {
+      // ✅ Cria novo se não existir
       await addDoc(collection(db, "users", user.uid, "checkins"), {
         tipo,
         data,
@@ -199,9 +213,7 @@ useEffect(() => {
     buscarPrimeiros();
   };
 
-  // -----------------------------
-  // EXCLUIR
-  // -----------------------------
+  // ---------------- EXCLUIR ----------------
   const excluirCheckin = async (id: string) => {
     if (!user) return;
 
@@ -209,15 +221,10 @@ useEffect(() => {
     buscarPrimeiros();
   };
 
-  // -----------------------------
-  // CONTADORES
-  // -----------------------------
- const diasUnicos = new Set(
-  todosCheckins.map((c) =>
-    c.data.toDate().toDateString()
-  )
-);
-
+  // ---------------- CONTADORES ----------------
+  const diasUnicos = new Set(
+    todosCheckins.map((c) => c.data.toDate().toDateString()),
+  );
 
   const totalDiasTreinados = diasUnicos.size;
 
@@ -229,11 +236,9 @@ useEffect(() => {
 
   for (let i = 0; i < datasOrdenadas.length; i++) {
     const hoje = new Date();
-    const diff =
-      Math.floor(
-        (hoje.getTime() - datasOrdenadas[i].getTime()) /
-          (1000 * 60 * 60 * 24)
-      );
+    const diff = Math.floor(
+      (hoje.getTime() - datasOrdenadas[i].getTime()) / (1000 * 60 * 60 * 24),
+    );
 
     if (diff === streak) {
       streak++;
@@ -242,9 +247,6 @@ useEffect(() => {
     }
   }
 
-  // -----------------------------
-  // UI
-  // -----------------------------
   if (!user)
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-900 text-white">
@@ -292,82 +294,145 @@ useEffect(() => {
                 key={tipo}
                 onClick={() => salvarCheckin(tipo)}
                 className="bg-blue-600 hover:bg-blue-700 active:scale-95 
-           text-white py-3 rounded-2xl 
-           font-semibold shadow-md 
-           transition-all duration-200"
+                text-white py-3 rounded-2xl font-semibold shadow-md 
+                transition-all duration-200 cursor-pointer"
               >
-                {editandoId ? "Atualizar" : tipo}
+                {tipo}
               </button>
             ))}
           </div>
         </div>
 
         {/* HISTÓRICO */}
-        <div className="w-full">
+        <div>
           <h2 className="text-white font-bold mb-2">📅 Histórico</h2>
 
-          {checkins.length === 0 ? (
-            <p className="text-zinc-400">Nenhum treino ainda</p>
-          ) : (
-            <>
-              <ul className="space-y-3">
-                {checkins.map((item) => (
-                  <li key={item.id} className="bg-zinc-800/90 backdrop-blur-sm 
-           p-4 rounded-2xl 
-           border border-zinc-700 
-           shadow-md">
-                    <div className="flex justify-between text-white">
-                      <span>{item.tipo}</span>
-                      <span className="text-sm text-zinc-400">
-                        {item.data
-                          .toDate()
-                          .toLocaleDateString("pt-BR")}
-                      </span>
-                    </div>
+          <ul className="space-y-3">
+            {checkins.map((item) => (
+              <li
+                key={item.id}
+                className="bg-zinc-800 p-4 rounded-2xl border border-zinc-700"
+              >
+                <div className="flex justify-between text-white">
+                  <span>{item.tipo}</span>
+                  <span className="text-sm text-zinc-400">
+                    {item.data.toDate().toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
 
-                    {item.comentario && (
-                      <p className="text-sm text-zinc-300 mt-1">
-                        {item.comentario}
-                      </p>
-                    )}
+                {item.comentario && (
+                  <p className="text-sm text-zinc-300 mt-1">
+                    {item.comentario}
+                  </p>
+                )}
 
-                    <div className="flex gap-4 mt-3 text-sm">
-                      <button
-                        onClick={() => {
-                          setEditandoId(item.id);
-                          setComentario(item.comentario || "");
-                          setDataSelecionada(
-                            item.data.toDate().toISOString().split("T")[0]
-                          );
-                        }}
-                        className="text-yellow-400 hover:text-yellow-300"
-                      >
-                        Editar
-                      </button>
+                <div className="flex gap-4 mt-3 text-sm">
+                  <button
+                    onClick={() => {
+                      setCheckinEditando(item);
+                      setNovoTipo(item.tipo);
+                      setNovoComentario(item.comentario || "");
+                      setModalAberto(true);
+                    }}
+                    className="text-yellow-400 cursor-pointer"
+                  >
+                    Editar
+                  </button>
 
-                      <button
-                        onClick={() => excluirCheckin(item.id)}
-                        className="text-red-500 hover:text-red-400"
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                  <button
+                    onClick={() => excluirCheckin(item.id)}
+                    className="text-red-500 cursor-pointer"
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
 
-              {hasMore && (
-                <button
-                  onClick={carregarMais}
-                  disabled={loadingMore}
-                  className="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 text-white py-2 rounded-lg"
-                >
-                  {loadingMore ? "Carregando..." : "Ver mais"}
-                </button>
-              )}
-            </>
+          {hasMore && (
+            <button
+              onClick={carregarMais}
+              disabled={loadingMore}
+              className="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 
+               text-white py-2 rounded-lg transition cursor-pointer"
+            >
+              {loadingMore ? "Carregando..." : "Ver mais"}
+            </button>
           )}
         </div>
+
+        {/* MODAL */}
+        {modalAberto && checkinEditando && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-zinc-900 p-6 rounded-2xl w-80 space-y-4 border border-zinc-700">
+              <h2 className="text-xl font-bold text-white">Atualizar Treino</h2>
+
+              <input
+                type="text"
+                placeholder="Digite o treino"
+                value={novoTipo}
+                onChange={(e) => setNovoTipo(e.target.value)}
+                className="w-full p-3 rounded-lg bg-zinc-800 text-white"
+              />
+
+              <div className="flex flex-wrap gap-2">
+                {tipos.map((tipo) => (
+                  <button
+                    key={tipo}
+                    type="button"
+                    onClick={() => setNovoTipo(tipo)}
+                    className="px-3 py-1 bg-zinc-700 rounded-lg text-sm text-white hover:bg-zinc-600 transition cursor-pointer"
+                  >
+                    {tipo}
+                  </button>
+                ))}
+              </div>
+
+              <input
+                type="text"
+                value={novoComentario}
+                onChange={(e) => setNovoComentario(e.target.value)}
+                className="w-full p-3 rounded-lg bg-zinc-800 text-white"
+              />
+
+              <div className="flex justify-between">
+                <button
+                  onClick={() => setModalAberto(false)}
+                  className="bg-red-500 px-4 py-2 rounded-lg cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  onClick={async () => {
+                    if (!user) return;
+
+                    await updateDoc(
+                      doc(
+                        db,
+                        "users",
+                        user.uid,
+                        "checkins",
+                        checkinEditando.id,
+                      ),
+                      {
+                        tipo: novoTipo,
+                        comentario: novoComentario,
+                      },
+                    );
+
+                    setModalAberto(false);
+                    buscarPrimeiros();
+                  }}
+                  className="bg-blue-600 px-4 py-2 rounded-lg cursor-pointer"
+                >
+                  Salvar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
