@@ -27,7 +27,6 @@ type Checkin = {
   data: Timestamp;
   comentario?: string;
 };
-
 export default function CheckinPage() {
   const router = useRouter();
 
@@ -254,11 +253,11 @@ useEffect(() => {
     );
 
   return (
-    <div className="min-h-screen bg-zinc-900">
+    <div className="min-h-screen w-full bg-zinc-900">
       <Navbar />
 
-      <main className="flex flex-col items-center pt-28 p-4 space-y-6 w-full max-w-xl mx-auto">
-        <h1 className="text-3xl font-bold text-white">Treinos</h1>
+      <main className="pt-24 px-4 pb-10 w-full max-w-md mx-auto space-y-6">
+        <h1 className="text-3xl font-bold text-white text-center">Treinos</h1>
 
         <p className="text-green-400 font-semibold">
           🔥 {totalDiasTreinados} dias treinando
@@ -270,7 +269,7 @@ useEffect(() => {
 
         {/* FORM */}
         <div className="flex flex-col space-y-4 w-full">
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="date"
               value={dataSelecionada}
@@ -292,7 +291,10 @@ useEffect(() => {
               <button
                 key={tipo}
                 onClick={() => salvarCheckin(tipo)}
-                className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition"
+                className="bg-blue-600 hover:bg-blue-700 active:scale-95 
+           text-white py-3 rounded-2xl 
+           font-semibold shadow-md 
+           transition-all duration-200"
               >
                 {editandoId ? "Atualizar" : tipo}
               </button>
@@ -310,7 +312,10 @@ useEffect(() => {
             <>
               <ul className="space-y-3">
                 {checkins.map((item) => (
-                  <li key={item.id} className="bg-zinc-800 p-4 rounded-lg">
+                  <li key={item.id} className="bg-zinc-800/90 backdrop-blur-sm 
+           p-4 rounded-2xl 
+           border border-zinc-700 
+           shadow-md">
                     <div className="flex justify-between text-white">
                       <span>{item.tipo}</span>
                       <span className="text-sm text-zinc-400">
