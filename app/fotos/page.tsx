@@ -19,13 +19,14 @@ type FotoItem = {
   id: string;
   url: string;
   descricao?: string;
+  nomeArquivo: string;
 };
 
 export default function Fotos() {
   const [fotos, setFotos] = useState<FotoItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
 
-  // Monitorar usuário logado
+  // Monitora usuário logado
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
@@ -53,9 +54,10 @@ export default function Fotos() {
     fetchFotos();
   }, [user]);
 
-  // Upload da foto
+  // Adicionar foto
   const adicionarFoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!user) return;
+
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -63,22 +65,24 @@ export default function Fotos() {
     const storageRef = ref(storage, `users/${user.uid}/fotos/${file.name}`);
 
     try {
-      // Upload da imagem
+      // Upload para Storage
       await uploadBytes(storageRef, file);
-
-      // Pega a URL pública
       const url = await getDownloadURL(storageRef);
 
       // Salva no Firestore
       const docRef = await addDoc(collection(db, "users", user.uid, "fotos"), {
         url,
         descricao: "Nova Foto",
+        nomeArquivo: file.name,
       });
 
       // Atualiza estado local
-      setFotos((prev) => [...prev, { id: docRef.id, url, descricao: "Nova Foto" }]);
+      setFotos((prev) => [
+        ...prev,
+        { id: docRef.id, url, descricao: "Nova Foto", nomeArquivo: file.name },
+      ]);
 
-      // Limpar input
+      // Limpa input
       event.target.value = "";
     } catch (error) {
       console.error("Erro ao enviar a foto:", error);
@@ -93,12 +97,13 @@ export default function Fotos() {
 
     try {
       // Deleta do Storage
-      const storageRef = ref(storage, `users/${user.uid}/fotos/${foto.url.split("%2F").pop()?.split("?")[0]}`);
+      const storageRef = ref(storage, `users/${user.uid}/fotos/${foto.nomeArquivo}`);
       await deleteObject(storageRef);
 
       // Deleta do Firestore
       await deleteDoc(doc(db, "users", user.uid, "fotos", foto.id));
 
+      // Atualiza estado local
       setFotos((prev) => prev.filter((f) => f.id !== foto.id));
     } catch (error) {
       console.error("Erro ao excluir a foto:", error);

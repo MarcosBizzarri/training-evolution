@@ -18,7 +18,7 @@ export default function Navbar() {
       <div className="max-w-4xl mx-auto flex justify-between items-center px-4 py-3">
         <button
           onClick={() => router.push("/app")}
-          className="text-white font-bold text-base sm:text-lg hover:text-blue-400 transition"
+          className="text-white font-bold text-base sm:text-lg hover:text-blue-400 transition cursor-pointer"
         >
           Início
         </button>
@@ -28,7 +28,7 @@ export default function Navbar() {
           className="bg-red-500 hover:bg-red-600 active:scale-95 
                    text-white text-xs sm:text-sm font-semibold 
                    px-3 sm:px-4 py-2 rounded-xl 
-                   transition-all duration-200"
+                   transition-all duration-200 cursor-pointer"
         >
           Sair
         </button>

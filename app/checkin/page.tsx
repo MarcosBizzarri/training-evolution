@@ -56,6 +56,7 @@ export default function CheckinPage() {
   const [comentario, setComentario] = useState("");
 
   const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
   const dataHoje = hoje.toISOString().split("T")[0];
   const [dataSelecionada, setDataSelecionada] = useState(dataHoje);
 
@@ -221,6 +222,46 @@ export default function CheckinPage() {
     buscarPrimeiros();
   };
 
+  const buscarTodos = async () => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "users", user.uid, "checkins"),
+      orderBy("data", "desc"),
+    );
+
+    const snapshot = await getDocs(q);
+
+    const lista = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Checkin[];
+
+    setTodosCheckins(lista);
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const buscarTodos = async () => {
+      const q = query(
+        collection(db, "users", user.uid, "checkins"),
+        orderBy("data", "desc"),
+      );
+
+      const snapshot = await getDocs(q);
+
+      const lista = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Checkin[];
+
+      setTodosCheckins(lista);
+    };
+
+    buscarTodos();
+  }, [user]);
+
   // ---------------- CONTADORES ----------------
   const diasUnicos = new Set(
     todosCheckins.map((c) => c.data.toDate().toDateString()),
@@ -234,14 +275,28 @@ export default function CheckinPage() {
 
   let streak = 0;
 
-  for (let i = 0; i < datasOrdenadas.length; i++) {
-    const hoje = new Date();
-    const diff = Math.floor(
-      (hoje.getTime() - datasOrdenadas[i].getTime()) / (1000 * 60 * 60 * 24),
-    );
+  // Normaliza datas
+  const datasNormalizadas = datasOrdenadas.map((d) => {
+    const nova = new Date(d);
+    nova.setHours(0, 0, 0, 0);
+    return nova;
+  });
 
-    if (diff === streak) {
+  // Verifica se treinou hoje
+  const treinouHoje =
+    datasNormalizadas.length > 0 &&
+    datasNormalizadas[0].getTime() === hoje.getTime();
+
+  // Se treinou hoje começa do 0, se não começa do 1 (ontem)
+  let offset = treinouHoje ? 0 : 1;
+
+  for (let i = 0; i < datasNormalizadas.length; i++) {
+    const data = new Date(hoje);
+    data.setDate(hoje.getDate() - offset);
+
+    if (datasNormalizadas.some((d) => d.getTime() === data.getTime())) {
       streak++;
+      offset++;
     } else {
       break;
     }
@@ -423,7 +478,8 @@ export default function CheckinPage() {
                     );
 
                     setModalAberto(false);
-                    buscarPrimeiros();
+                    await buscarPrimeiros();
+                    await buscarTodos();
                   }}
                   className="bg-blue-600 px-4 py-2 rounded-lg cursor-pointer"
                 >
